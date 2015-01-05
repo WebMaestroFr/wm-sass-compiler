@@ -49,6 +49,7 @@ class WM_Sass
 			'search'    => true
 		);
 		$config = apply_filters( 'sass_configuration', $defaults );
+		$config = array_merge_recursive( $defaults, $config );
 		self::$imports = self::valid_files( $config, 'imports' );
 		self::$cache = empty( $config['cache'] ) ? $defaults['cache'] : $config['cache'];
 		if ( is_admin() ) {
