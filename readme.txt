@@ -1,22 +1,22 @@
 === Plugin Name ===
 Contributors: WebMaestro.Fr
 Donate link: http://webmaestro.fr/sass-compiler-wordpress/
-Tags: SASS, compiler
+Tags: Sass, compiler
 Requires at least: 4.0
 Tested up to: 4.0
 Stable tag: 1.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-SASS compiler for WordPress. Allows you to write and compile SASS, and to edit style variables straight into your WordPress dashboard.
+Sass compiler for WordPress. Allows you to write and compile Sass, and to edit style variables straight into your WordPress dashboard.
 
 == Description ==
 
-Write SASS, edit your variables and compile your stylesheet from your dashboard.
+Write Sass, edit your variables and compile your stylesheet from your dashboard.
 
 [Read the documentation](http://webmaestro.fr/sass-compiler-wordpress/)
 
-  - Register and enqueue your SASS sheets the same way you would do for your CSS.
+  - Register and enqueue your Sass sheets the same way you would do for your CSS.
 
     ```
     wp_enqueue_style( 'my-sass-handle', 'http://example.com/css/mystyle.scss', $deps, $ver, $media );
@@ -26,13 +26,13 @@ Write SASS, edit your variables and compile your stylesheet from your dashboard.
 
     Configuration of the plugin is optional, but you should at least register your variables if you are using a CSS framework.
 
-  - Set a SASS variable value
+  - Set a Sass variable value
 
     ```
     sass_set( $variable, $value );
     ```
 
-  - Get a SASS variable value
+  - Get a Sass variable value
 
     ```
     sass_get( $variable );
@@ -46,7 +46,7 @@ The plugin uses [the scssphp Compiler](http://leafo.net/scssphp/).
 
 1. Upload `sass-compiler` to the `/wp-content/plugins/` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Find the plugin's pages under the new 'SASS' menu
+3. Find the plugin's pages under the new 'Sass' menu
 
 == Frequently Asked Questions ==
 

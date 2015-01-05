@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: SASS Compiler
+Plugin Name: Sass Compiler
 Plugin URI: http://webmaestro.fr/sass-compiler-wordpress/
 Author: Etienne Baudry
 Author URI: http://webmaestro.fr
@@ -17,13 +17,13 @@ GitHub Branch: master
 require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/wm-settings.php' );
 
 function sass_set( $variable, $value = null ) {
-	// Set a SASS variable value
+	// Set a Sass variable value
 	$variable = sanitize_key( $variable );
 	WM_Sass::$variables[$variable] = $value;
 }
 
 function sass_get( $variable ) {
-	// Return a SASS variable value
+	// Return a Sass variable value
 	$variable = sanitize_key( $variable );
 	if ( isset( WM_Sass::$variables[$variable] ) ) {
 		return WM_Sass::$variables[$variable];
@@ -57,7 +57,7 @@ class WM_Sass
 				__( 'Sass Compiler', 'wm-sass' ),
 				array(
 					'parent' => false,
-					'title' => __( 'SASS', 'wm-sass' ),
+					'title' => __( 'Sass', 'wm-sass' ),
 					'icon_url' => plugin_dir_url( __FILE__ ) . 'img/menu-icon.png'
 				),
 				array(
@@ -69,14 +69,14 @@ class WM_Sass
 								'type'        => 'textarea',
 								'description' => sprintf( __( 'From this very stylesheet, <strong>@import</strong> urls are relative to <code>%s</code>.', 'wm-sass' ), get_template_directory() ),
 								'attributes'  => array(
-									'placeholder' => esc_attr( '/* SASS stylesheet */', 'wm-sass' )
+									'placeholder' => esc_attr( '/* Sass stylesheet */', 'wm-sass' )
 								)
 							)
 						)
 					)
 				),
 				array(
-					'description' => '<a href="http://sass-lang.com/guide" target="_blank">' . __( 'Getting started with SASS', 'wm-sass' ) . '</a> | <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">' . __( 'Configure with PHP', 'wm-sass' ) . '</a>',
+					'description' => '<a href="http://sass-lang.com/guide" target="_blank">' . __( 'Getting started with Sass', 'wm-sass' ) . '</a> | <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">' . __( 'Configure with PHP', 'wm-sass' ) . '</a>',
 					'tabs'        => true,
 					'submit'      => __( 'Compile', 'wm-sass' ),
 					'reset'       => false,
@@ -85,7 +85,7 @@ class WM_Sass
 			);
 			self::$sources = self::valid_files( $config, 'variables' );
 			if ( empty( self::$sources ) ) {
-				$page->add_notice( __( 'In order to edit your SASS variables from this page, you must <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">register your definition file(s)</a>.', 'wm-sass' ) );
+				$page->add_notice( __( 'In order to edit your Sass variables from this page, you must <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">register your definition file(s)</a>.', 'wm-sass' ) );
 			} else {
 				$section = array(
 					'title'       => __( 'Variables', 'wm-sass' ),
@@ -199,7 +199,7 @@ class WM_Sass
 			$css = $parser->compile( $code );
 			self::restoreSources();
 			file_put_contents( self::$output, $css );
-			add_settings_error( 'sass_compiler', 'sass_compiled', __( 'SASS successfully compiled.', 'wm-sass' ), 'updated' );
+			add_settings_error( 'sass_compiler', 'sass_compiled', __( 'Sass successfully compiled.', 'wm-sass' ), 'updated' );
 		} catch ( exception $e ) {
 			add_settings_error( 'sass_compiler', $e->getCode(), sprintf( __( 'Compiler result with the following error : <pre>%s</pre>', 'wm-sass' ), $e->getMessage() ) );
 		}
