@@ -22,16 +22,11 @@ It uses [the scssphp Compiler](http://leafo.net/scssphp/).
 - Configure the plugin with the `sass_configuration` filter.
   ```php
   add_filter( 'sass_configuration', 'my_sass_config' );
-  function my_sass_config( $config ) {
-    $variables = array( 'sass/_variables.scss' );
-    $imports = array(
-      'sass/bootstrap.scss',
-      'sass/_theme.scss'
+  function my_sass_config( $defaults ) {
+    return array(
+      'variables' => array( 'sass/_variables.scss' ),
+      'imports'   => array( 'sass/bootstrap.scss', 'sass/_theme.scss' )
     );
-    return array_merge_recursive( $config, array(
-      'variables' => $variables,
-      'imports'   => $imports
-    ) );
   }
   ```
   Configuration of the plugin is optional, but you should at least register your variables if you are using a CSS framework.
