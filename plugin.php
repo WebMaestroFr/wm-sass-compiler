@@ -13,6 +13,7 @@ GitHub Plugin URI: https://github.com/WebMaestroFr/wm-sass-compiler
 GitHub Branch: master
 */
 
+if ( ! class_exists( 'WM_Sass' ) ) {
 
 require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/wm-settings.php' );
 
@@ -245,7 +246,7 @@ class WM_Sass
 	public static function style_loader_src( $src )
 	{
 		$input = strtok( $src, '?' );
-    if ( preg_match( '/\.scss$/', $input ) ) {
+    	if ( preg_match( '/\.scss$/', $input ) ) {
 			if ( $file = self::valid_file( $input ) ) {
 				$key = md5( $file );
 				$hash = md5_file( $file );
@@ -270,5 +271,7 @@ class WM_Sass
 	}
 }
 add_action( 'init', array( 'WM_Sass', 'init' ) );
+
+}
 
 ?>
