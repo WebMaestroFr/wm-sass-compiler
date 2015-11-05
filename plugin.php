@@ -15,7 +15,7 @@ GitHub Branch: master
 
 if ( ! class_exists( 'WM_Sass' ) ) {
 
-require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/wm-settings.php' );
+require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/plugin.php' );
 
 function sass_set( $variable, $value = null ) {
 	// Set a Sass variable value
@@ -26,20 +26,19 @@ function sass_set( $variable, $value = null ) {
 function sass_get( $variable ) {
 	// Return a Sass variable value
 	$variable = sanitize_key( $variable );
-	if ( isset( WM_Sass::$variables[$variable] ) ) {
-		return WM_Sass::$variables[$variable];
-	}
-	return null;
+	return isset( WM_Sass::$variables[$variable] )
+	 	? WM_Sass::$variables[$variable]
+		: null;
 }
 
 class WM_Sass
 {
-	public static	$variables = array();
+	public static $variables = array();
 
 	private static $cache,
 		$imports = array(),
 		$output = false,
-		$sources;
+		$sources = array();
 
 	public static function init()
 	{
@@ -49,8 +48,7 @@ class WM_Sass
 			'cache'     => ABSPATH . 'wp-content/cache',
 			'search'    => true
 		);
-		$config = apply_filters( 'sass_configuration', $defaults );
-		$config = array_merge_recursive( $defaults, $config );
+		$config = array_merge( $defaults, apply_filters( 'sass_configuration', $defaults ) );
 		self::$imports = self::valid_files( $config, 'imports' );
 		self::$cache = empty( $config['cache'] ) ? $defaults['cache'] : $config['cache'];
 		if ( is_admin() ) {
@@ -58,8 +56,8 @@ class WM_Sass
 				'sass_compiler',
 				__( 'Sass Compiler', 'wm-sass' ),
 				array(
-					'parent' => false,
-					'title' => __( 'Sass', 'wm-sass' ),
+					'parent' => 'themes.php',
+					// 'title' => __( 'Sass', 'wm-sass' ),
 					'icon_url' => plugin_dir_url( __FILE__ ) . 'img/menu-icon.png'
 				),
 				array(
@@ -71,7 +69,7 @@ class WM_Sass
 								'type'        => 'textarea',
 								'description' => sprintf( __( 'From this very stylesheet, <strong>@import</strong> urls are relative to <code>%s</code>.', 'wm-sass' ), get_template_directory() ),
 								'attributes'  => array(
-									'placeholder' => esc_attr( '/* Sass stylesheet */', 'wm-sass' )
+									'placeholder' => esc_attr( __( '/* Sass stylesheet */', 'wm-sass' ) )
 								)
 							)
 						)
@@ -168,13 +166,18 @@ class WM_Sass
 				add_settings_error( 'sass_compiler', 'file_not_found', sprintf( __( 'The file <code>%s</code> cannot be found.', 'wm-sass' ), $path ) );
 			} );
 			return false;
+		} else if ( ! is_writable( $path ) ) {
+			add_action( 'admin_notices', function () use ( $path ) {
+				add_settings_error( 'sass_compiler', 'file_not_writable', sprintf( __( 'The file <code>%s</code> is not writable.', 'wm-sass' ), $path ) );
+			} );
+			return false;
 		}
 		return $path;
 	}
 
 	private static function getParser()
 	{
-		require_once( plugin_dir_path( __FILE__ ) . 'libs/scss.inc.php' );
+		require_once( plugin_dir_path( __FILE__ ) . 'libs/scssphp/scss.inc.php' );
 		$parser = new scssc();
 		$parser->setImportPaths( array(
 			get_stylesheet_directory(),
@@ -225,7 +228,7 @@ class WM_Sass
 
 	public static function admin_enqueue_scripts( $hook_suffix )
 	{
-		if ( 'toplevel_page_sass_compiler' === $hook_suffix ) {
+		if ( 'appearance_page_sass_compiler' === $hook_suffix ) {
 			wp_enqueue_script( 'codemirror', plugin_dir_url( __FILE__ ) . 'js/codemirror.js' );
 			wp_enqueue_script( 'codemirror-css', plugin_dir_url( __FILE__ ) . 'js/codemirror.css.js', array( 'codemirror' ) );
 			wp_enqueue_script( 'codemirror-placeholder', plugin_dir_url( __FILE__ ) . 'js/codemirror.placeholder.js', array( 'codemirror' ) );
@@ -266,8 +269,8 @@ class WM_Sass
 				return str_replace( ABSPATH, trailingslashit( site_url() ), $output );
 			}
 			return null;
-    }
-    return $src;
+	    }
+	    return $src;
 	}
 }
 add_action( 'init', array( 'WM_Sass', 'init' ) );

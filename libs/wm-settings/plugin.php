@@ -44,7 +44,7 @@ class WM_Settings {
       'updated'     => null
     ), $args );
     add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-    add_action( 'admin_init', array( $this, 'admin_init' ) );
+    add_action( 'admin_init', array( $this, 'admin_init' ), 101 );
   }
 
   public function apply_settings( $settings )
@@ -101,7 +101,7 @@ class WM_Settings {
     foreach ( $this->settings as $setting => $section ) {
       $_POST[$setting] = array_merge( $_POST[$setting], $this->get_defaults( $setting ) );
     }
-    add_settings_error( $this->page, 'settings_reset', __( 'Default settings have been reset.' ), 'updated' );
+    add_settings_error( $this->page, 'settings_reset', __( 'Default settings have been reset.', 'wm-settings' ), 'updated' );
   }
 
   public function admin_menu()
@@ -194,7 +194,7 @@ class WM_Settings {
           $field = array_merge( array(
             'id'    => $id,
             'name'    => $setting . '[' . $name . ']',
-            'value'   => isset( $values[$name] ) ? $values[$name] : null,
+            'value'   => isset( $field['value'] ) ? $field['value'] : isset( $values[$name] ) ? $values[$name] : null,
             'label_for' => $field['label'] === false ? 'hidden' : $id
           ), $field );
           add_settings_field( $name, $field['label'], array( __CLASS__, 'do_field' ), $this->page, $setting, $field );
