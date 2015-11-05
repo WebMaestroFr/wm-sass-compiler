@@ -33,15 +33,18 @@ function sass_get( $variable ) {
 
 class WM_Sass
 {
-	public static $variables = array();
+	public static $variables = array(); // Sass variables
 
-	private static $cache,
-		$imports = array(),
-		$output = false,
-		$sources = array();
+	private static $cache,   // Cache directory (writable)
+		$imports = array(),  // Normalize, frameworks or other stuff to import before stylesheet
+		$output = false,     // Compiled CSS file path
+		$sources = array(),  // Registered variables files
+		$fields = array(),   // "Variables" page fields
+		$controls = array(); // "Theme Customization API" controls
 
 	public static function init()
 	{
+		// Configuration
 		$defaults = array(
 			'variables' => array(),
 			'imports'   => array(),
@@ -49,19 +52,24 @@ class WM_Sass
 			'search'    => true
 		);
 		$config = array_merge( $defaults, apply_filters( 'sass_configuration', $defaults ) );
+		self::$sources = self::valid_files( $config, 'variables' );
 		self::$imports = self::valid_files( $config, 'imports' );
 		self::$cache = empty( $config['cache'] ) ? $defaults['cache'] : $config['cache'];
+
+		// Admin init
 		if ( is_admin() ) {
+
+			// Plugin pages
 			$page = create_settings_page(
 				'sass_compiler',
 				__( 'Sass Compiler', 'wm-sass' ),
 				array(
-					'parent' => 'themes.php',
+					'parent' => 'themes.php', // Under Appearance
 					// 'title' => __( 'Sass', 'wm-sass' ),
 					'icon_url' => plugin_dir_url( __FILE__ ) . 'img/menu-icon.png'
 				),
 				array(
-					'sass_compiler' => array(
+					'sass_compiler' => array( // "Editor" page
 						'title'       => __( 'Stylesheet', 'wm-sass' ),
 						'fields' => array(
 							'stylesheet' => array(
@@ -83,66 +91,101 @@ class WM_Sass
 					'updated'     => false
 				)
 			);
-			self::$sources = self::valid_files( $config, 'variables' );
+
+			// Parse variables from registered source files
 			if ( empty( self::$sources ) ) {
 				$page->add_notice( __( 'In order to edit your Sass variables from this page, you must <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">register your definition file(s)</a>.', 'wm-sass' ) );
 			} else {
+
+				// "Variables" page
 				$section = array(
 					'title'       => __( 'Variables', 'wm-sass' ),
 					'description' => empty( $config['search'] ) ? false : '<input type="search" id="variable-search" placeholder="' . __( 'Search Variable', 'wm-sass' ) . '">',
 					'fields'      => array()
 				);
+
 				foreach ( self::$sources as $source ) {
 					$fields = array();
 					if ( $lines = file( $source ) ) {
 						foreach ( $lines as $line ) {
-							if ( preg_match( '/^\$([a-zA-Z-_]+?)\s?:\s?(.+?);/', $line, $matches ) ) {
+							// Find variable definitions
+							if ( preg_match( '/^\s*\$([a-zA-Z-]+)\s*:\s*(.+)(\s+!\s*default)?\s*;(\s*\/\/\s*(WP_Customize_[a-zA-Z_]+))?\s*$/', $line, $matches ) ) {
 								$name = sanitize_key( $matches[1] );
-								$default = preg_replace( '/\s?!\s?default$/', '', trim( $matches[2] ) );
-								self::$variables[$name] = $default;
+
+								// Set variable
+								self::$variables[$name] = $matches[2];
+
+								// "Variables" page field
 								$fields[$name] = array(
-									'label' => '$' . $name,
-									'attributes' => array( 'placeholder' => esc_attr( $default ) )
+									'label' => "\${$name}",
+									'attributes' => array( 'placeholder' => esc_attr( $matches[2] ) )
 								);
+
+								// "Theme Customization API" control
+								if ( ! empty( $matches[5] ) ) {
+									self::$controls[$name] = array(
+										'class' => $matches[5],
+										'default' => $matches[2]
+									);
+								}
 							}
 						}
 					}
+
 					if ( empty( $fields ) ) {
 						$page->add_notice( sprintf( __( 'No variables were found in the registered definition file <code>%s</code>.', 'wm-sass' ), $source ), 'warning' );
 					} else {
-						$section['fields'] = array_merge( $section['fields'], $fields );
+						self::$fields = array_merge( self::$fields, $fields );
 					}
 				};
+
 				if ( ! empty( self::$variables ) ) {
 					$page->apply_settings( array(
-						'sass_variables' => $section
+						'sass_variables' => array(
+							'title'       => __( 'Variables', 'wm-sass' ),
+							'description' => empty( $config['search'] ) ? false : '<input type="search" id="variable-search" placeholder="' . __( 'Search Variable', 'wm-sass' ) . '">',
+							'fields'      => self::$fields
+						)
 					) );
 				}
 			}
+
+			// Validate cache directory
 			if ( ! is_dir( self::$cache ) && ! mkdir( self::$cache, 0755 ) ) {
 				$page->add_notice( sprintf( __( 'The cache directory <code>%s</code> does not exist and cannot be created. Please create it with <code>0755</code> permissions.', 'wm-sass' ), self::$cache ), 'error' );
 			} else if ( ! is_writable( self::$cache ) && ! chmod( self::$cache, 0755 ) ) {
 				$page->add_notice( sprintf( __( 'The cache directory <code>%s</code> is not writable. Please apply <code>0755</code> permissions to it.', 'wm-sass' ), self::$cache ), 'error' );
 			}
+
 			update_option( 'sass_variables_defaults', self::$variables );
+
 		} else {
+
+			// Public init
 			self::$variables = get_option( 'sass_variables_defaults', array() );
+
 		}
+
 		self::$variables = array_merge( self::$variables, array_filter( get_setting( 'sass_variables' ) ) );
+
+		// Hooks
 		if ( is_writable( self::$cache ) ) {
 			self::$output = self::$cache . '/wm-sass-' . get_current_blog_id() . '.css';
+	        add_action( 'customize_register', array( __CLASS__, 'customize_register' ) );
 			add_action( 'sass_compiler_settings_updated', array( __CLASS__, 'compile' ) );
 			add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
 			add_filter( 'style_loader_src', array( __CLASS__, 'style_loader_src' ) );
 		}
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_enqueue_scripts' ) );
 	}
+
 	private static function valid_files( $array, $key )
 	{
 		$valid = array();
 		if ( ! empty( $array[$key] ) ) {
 			$files = $array[$key];
 			if ( ! is_array( $files ) ) {
+				// Convert to array
 				$files = array( (string) $files );
 			}
 			foreach ( $files as $file ) {
@@ -153,27 +196,48 @@ class WM_Sass
 		}
 		return $valid;
 	}
+
 	private static function valid_file( $path )
 	{
 		if ( empty( $path ) ) { return false; }
-		if ( strpos( $path, site_url() ) === 0 ) {
-			$path = str_replace( trailingslashit( site_url() ), ABSPATH, $path );
-		} else if ( strpos( $path, ABSPATH ) !== 0 ) {
+		// Convert URIs to path
+		$path = str_replace( trailingslashit( site_url() ), ABSPATH, $path );
+		if ( strpos( $path, ABSPATH ) !== 0 ) {
+			// Convert relative (from template directory) to absolute
 			$path = trailingslashit( get_template_directory() ) . ltrim( $path, '/' );
 		}
 		if ( ! is_file( $path ) ) {
 			add_action( 'admin_notices', function () use ( $path ) {
 				add_settings_error( 'sass_compiler', 'file_not_found', sprintf( __( 'The file <code>%s</code> cannot be found.', 'wm-sass' ), $path ) );
 			} );
-			return false;
 		} else if ( ! is_writable( $path ) ) {
 			add_action( 'admin_notices', function () use ( $path ) {
 				add_settings_error( 'sass_compiler', 'file_not_writable', sprintf( __( 'The file <code>%s</code> is not writable.', 'wm-sass' ), $path ) );
 			} );
-			return false;
+		} else {
+			return $path;
 		}
-		return $path;
+		return false;
 	}
+
+    public static function customize_register( $wp_customize )
+    {
+		if ( ! empty( self::$controls ) ) {
+	        $wp_customize->add_section( 'wm_sass' , array(
+				'title' => __( 'Sass Variables', 'wm-sass' )
+			) );
+	        foreach ( self::$controls as $name => $control ) {
+	        	$wp_customize->add_setting( $name, array(
+					'default' => esc_js( $control['default'] )
+				) );
+				$wp_customize->add_control( new $control['class']( $wp_customize, $name, array(
+					'label'    => "\${$name}",
+					'section'  => 'wm_sass',
+					'settings' => $name
+				) ) );
+	        }
+		}
+    }
 
 	private static function getParser()
 	{
@@ -200,16 +264,16 @@ class WM_Sass
 				$code .= "@import '{$import}';\n";
 			}
 			$code .= get_setting( 'sass_compiler', 'stylesheet' );
-			self::blankSources();
+			self::blank_sources();
 			$css = $parser->compile( $code );
-			self::restoreSources();
+			self::restore_sources();
 			file_put_contents( self::$output, $css );
 			add_settings_error( 'sass_compiler', 'sass_compiled', __( 'Sass successfully compiled.', 'wm-sass' ), 'updated' );
 		} catch ( exception $e ) {
 			add_settings_error( 'sass_compiler', $e->getCode(), sprintf( __( 'Compiler result with the following error : <pre>%s</pre>', 'wm-sass' ), $e->getMessage() ) );
 		}
 	}
-	private static function blankSources()
+	private static function blank_sources()
 	{
 		foreach ( self::$sources as $i => $source ) {
 			if ( is_file( $source ) && ! is_file( $source . '.restore.scss' ) && copy( $source, $source . '.restore.scss' ) ) {
@@ -217,7 +281,7 @@ class WM_Sass
 			}
 		}
 	}
-	private static function restoreSources()
+	private static function restore_sources()
 	{
 		foreach ( self::$sources as $i => $source ) {
 			if ( is_file( $source . '.restore.scss' ) && file_get_contents( $source ) === '' && copy( $source . '.restore.scss', $source ) ) {
@@ -259,9 +323,9 @@ class WM_Sass
 					$parser = self::getParser();
 					$parser->addImportPath( dirname( $file ) );
 					$code = file_get_contents( $file );
-					self::blankSources();
+					self::blank_sources();
 					$css = $parser->compile( $code );
-					self::restoreSources();
+					self::restore_sources();
 					file_put_contents( $output, $css );
 					$cache[$key] = $hash;
 					update_option( 'sass_compiler_cache', $cache );
