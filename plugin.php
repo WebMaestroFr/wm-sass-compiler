@@ -240,8 +240,8 @@ class WM_Sass
 		}
 		if ( $handle === 'wm-sass' ) {
 			// Sort out dependencies
-			if ( is_file( "{self::$file}.scss" ) ) {
-				self::$imports[] = "{self::$file}.scss";
+			if ( is_file( self::$file . '.scss' ) ) {
+				self::$imports[] = self::$file . '.scss';
 			}
 			// We'll print this as soon as we're sure the compiled CSS it links to is up to date
 			self::$tag = $html;
@@ -324,7 +324,17 @@ class WM_Sass
 			$code .= "@import '{$import}';\n";
 		}
 		self::blank_sources();
-		$css = $parser->compile( $code );
+		try {
+			$css = $parser->compile( $code );
+			add_action( 'admin_notices', function () {
+				add_settings_error( 'wm-sass', 'sass_compiled', __( 'Sass successfully compiled.', 'wm-sass' ), 'updated' );
+			} );
+		} catch ( exception $e ) {
+			$css = null;
+			add_action( 'admin_notices', function () use ( $e ) {
+				add_settings_error( 'wm-sass', $e->getCode(), sprintf( __( 'Compiler result with the following error : <pre>%s</pre>', 'wm-sass' ), $e->getMessage() ) );
+			} );
+		}
 		self::restore_sources();
 		return $css;
 	}
@@ -337,9 +347,10 @@ class WM_Sass
 			get_template_directory(),
 			ABSPATH
 		) );
-		$parser->setFormatter( 'scss_formatter_compressed' );
 		// Set variables
 		$parser->setVariables( self::get_variables() );
+		$parser->setNumberPrecision( 2 );
+		$parser->setFormatter( 'Leafo\ScssPhp\Formatter\Crunched' );
 		return $parser;
 	}
 	private static function blank_sources()
