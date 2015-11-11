@@ -1,0 +1,10 @@
+libs
+!libs/*/README.md
+!libs/codemirror/addon/display/placeholder.js
+!libs/codemirror/lib/codemirror.css
+!libs/codemirror/lib/codemirror.js
+!libs/codemirror/mode/css/css.js
+!libs/scssphp/src
+!libs/scssphp/classmap.php
+!libs/scssphp/scss.inc.php
+!libs/wm-settings

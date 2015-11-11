@@ -1,4 +1,4 @@
-A Sass compiler for WordPress ! This is a plugin that will allow you to write and compile Sass, and to edit style variables straight into your WordPress dashboard.
+A Sass compiler for WordPress ! This plugin allows you to enqueue `.scss` styles, edit variables from your dashboard. CSS will be compiled if modifications occured.
 
 It uses [the scssphp Compiler](http://leafo.net/scssphp/).
 
