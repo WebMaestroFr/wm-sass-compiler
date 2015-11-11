@@ -15,8 +15,6 @@ GitHub Branch: master
 
 if ( ! class_exists( 'WM_Sass' ) ) {
 
-require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/plugin.php' );
-
 function sass_set( $variable, $value = null ) {
 	// Set a Sass variable value
 	WM_Sass::set_variable( sanitize_key( $variable ), $value );
@@ -106,7 +104,6 @@ class WM_Sass
 		add_action( 'wp_head', array( __CLASS__, 'print_styles' ) );
 		add_action( 'sass_compiler_settings_updated', array( __CLASS__, 'settings_updated' ) );
 		add_action( 'customize_register', array( __CLASS__, 'customize_register' ) );
-		add_action( 'customize_save_after', array( __CLASS__, 'customize_save_after' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_enqueue_scripts' ) );
 	}
 
@@ -171,6 +168,9 @@ class WM_Sass
 
 	private static function create_settings_page( $search )
 	{
+		if ( ! function_exists( 'create_settings_page' ) ) {
+			require_once( plugin_dir_path( __FILE__ ) . 'libs/wm-settings/plugin.php' );
+		}
 		$page = create_settings_page(
 			'sass_compiler',
 			__( 'Sass Compiler', 'wm-sass' ),
@@ -254,8 +254,11 @@ class WM_Sass
 			$hash = implode( '-', array_map( 'md5_file', array_merge( self::$sources, self::$imports ) ) );
 			wp_cache_set( 'wm_sass_hash', $hash, 3600 );
 		}
-		if ( ! is_file( self::$href ) || $hash !== get_option( 'wm_sass_hash' ) ) {
+		if ( $refresh = ! empty ( $GLOBALS['wp_customize'] ) || ! is_file( self::$href ) || $hash !== get_option( 'wm_sass_hash' ) ) {
 			// If files are different, compile
+			if ( $refresh ) {
+				self::init_variables();
+			}
 			self::compile();
 			update_option( 'wm_sass_hash', $hash );
 		}
@@ -289,12 +292,6 @@ class WM_Sass
 				'settings' => $name
 			) ) );
         }
-    }
-
-    public static function customize_save_after()
-    {
-		self::init_variables();
-		self::compile();
     }
 
 	public static function admin_enqueue_scripts( $hook_suffix )
