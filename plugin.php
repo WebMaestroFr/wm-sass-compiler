@@ -106,7 +106,7 @@ class WM_Sass
 		add_action( 'wp_head', array( __CLASS__, 'print_styles' ) );
 		add_action( 'sass_compiler_settings_updated', array( __CLASS__, 'settings_updated' ) );
 		add_action( 'customize_register', array( __CLASS__, 'customize_register' ) );
-		add_action( 'customize_save_after', array( __CLASS__, 'compile' ) );
+		add_action( 'customize_save_after', array( __CLASS__, 'customize_save_after' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_enqueue_scripts' ) );
 	}
 
@@ -289,6 +289,12 @@ class WM_Sass
 				'settings' => $name
 			) ) );
         }
+    }
+
+    public static function customize_save_after()
+    {
+		self::init_variables();
+		self::compile();
     }
 
 	public static function admin_enqueue_scripts( $hook_suffix )
