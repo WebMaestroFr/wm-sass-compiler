@@ -38,8 +38,7 @@ class WM_Sass
 		if ( null === self::$variables ) {
 			self::init_variables();
 		}
-		self::$variables['set'][$key] = $value;
-		self::$variables['value'][$key] = $value;
+		self::$variables['set'][$key] = self::$variables['value'][$key] = $value;
 	}
 
 	public static function get_variables( $property = 'value', $key = null )
@@ -58,6 +57,38 @@ class WM_Sass
 			return null;
 		}
 		return self::$variables[$property][$key];
+	}
+
+	private static function init_variables()
+	{
+		self::$variables = array(
+			'default' => array(),
+			'control' => array(),
+			'custom'  => array(),
+			'set'     => self::$variables // So set variables are not reinitiated
+				? self::$variables['set']
+				: array( 'site-url' => site_url() ),
+			'option' => array_filter( (array) get_option( 'sass_variables' ) )
+		);
+		// Parse variables from registered source files
+		foreach ( self::$sources as $source ) {
+			if ( $lines = file( $source ) ) {
+				foreach ( $lines as $line ) {
+					// Find variable definitions
+					if ( preg_match( '/^\s*\$([a-zA-Z-]+)\s*:\s*(.+)(\s+!\s*default)?\s*;(\s*\/\/\s*(WP_Customize_[a-zA-Z_]+))?\s*$/', $line, $matches ) ) {
+						self::$variables['default'][$matches[1]] = $matches[2];
+						if ( ! empty( $matches[5] ) ) {
+							self::$variables['control'][$matches[1]] = $matches[5];
+							if ( $custom = get_theme_mod( $matches[1] ) ) {
+								self::$variables['custom'][$matches[1]] = get_theme_mod( $matches[1] );
+							}
+						}
+					}
+				}
+			}
+		}
+		self::$variables['recorded'] = array_merge( self::$variables['option'], self::$variables['custom'] );
+		self::$variables['value'] = array_merge( self::$variables['default'], self::$variables['recorded'], array_filter( self::$variables['set'] ) );
 	}
 
 	public static function init()
@@ -104,39 +135,8 @@ class WM_Sass
 		add_action( 'wp_head', array( __CLASS__, 'print_styles' ) );
 		add_action( 'sass_compiler_settings_updated', array( __CLASS__, 'settings_updated' ) );
 		add_action( 'customize_register', array( __CLASS__, 'customize_register' ) );
+		add_action( 'customize_save_after', array( __CLASS__, 'customize_save_after' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_enqueue_scripts' ) );
-	}
-
-	private static function init_variables()
-	{
-		self::$variables = array(
-			'default' => array(),
-			'control' => array(),
-			'set'     => is_array( self::$variables ) && isset( self::$variables['set'] )
-				? self::$variables['set']
-				: array(
-					'site-url' => site_url()
-				)
-		);
-		// Parse variables from registered source files
-		foreach ( self::$sources as $source ) {
-			if ( $lines = file( $source ) ) {
-				foreach ( $lines as $line ) {
-					// Find variable definitions
-					if ( preg_match( '/^\s*\$([a-zA-Z-]+)\s*:\s*(.+)(\s+!\s*default)?\s*;(\s*\/\/\s*(WP_Customize_[a-zA-Z_]+))?\s*$/', $line, $matches ) ) {
-						self::$variables['default'][$matches[1]] = $matches[2];
-						if ( ! empty( $matches[5] ) ) {
-							self::$variables['control'][$matches[1]] = $matches[5];
-						}
-					}
-				}
-			}
-		}
-		$controls = array_keys( self::$variables['control'] );
-		self::$variables['recorded'] = array_filter( array_merge( (array) get_option( 'sass_variables' ), array_filter( array_combine( $controls, array_map( function ( $name ) {
-			return get_theme_mod( $name );
-		}, $controls ) ) ) ) );
-		self::$variables['value'] = array_merge( self::$variables['default'], self::$variables['recorded'], array_filter( self::$variables['set'] ) );
 	}
 
 	private static function valid_file( $path )
@@ -260,7 +260,7 @@ class WM_Sass
 		if ( current_user_can( 'edit_themes' ) || ! $hash = wp_cache_get( 'wm_sass_hash' ) ) {
 			// If user or cache expired, check files version
 			$hash = implode( '-', array_map( 'md5_file', array_merge( self::$imports ) ) );
-			$hash .= '-' . md5( json_encode( self::$variables ) );
+			$hash .= '-' . md5( json_encode( self::get_variables() ) );
 			wp_cache_set( 'wm_sass_hash', $hash, 3600 );
 		}
 		if ( $refresh = ! empty( $GLOBALS['wp_customize'] ) || ! is_file( self::$file ) || $hash !== get_option( 'wm_sass_hash' ) ) {
@@ -274,14 +274,18 @@ class WM_Sass
 			}
 		}
 		echo self::$tag;
+		// var_dump( self::$variables ); exit();
 	}
 
 	public static function settings_updated()
 	{
 		foreach ( array_keys( self::get_variables( 'control' ) ) as $name ) {
-			set_theme_mod( $name, self::get_variables( 'recorded', $name ) );
+			set_theme_mod( $name, self::get_variables( 'option', $name ) );
 		}
 		file_put_contents( self::$file . '.scss', get_setting( 'sass_compiler', 'stylesheet' ) );
+		if ( is_file( self::$file ) ) {
+			unlink( self::$file );
+		}
 	}
 
     public static function customize_register( $wp_customize )
@@ -300,6 +304,14 @@ class WM_Sass
 				'settings' => $name
 			) ) );
         }
+    }
+
+    public static function customize_save_after()
+    {
+		update_option( 'sass_variables', self::get_variables( 'recorded' ) );
+		if ( is_file( self::$file ) ) {
+			unlink( self::$file );
+		}
     }
 
 	public static function admin_enqueue_scripts( $hook_suffix )
