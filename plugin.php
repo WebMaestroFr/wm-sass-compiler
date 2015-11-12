@@ -274,7 +274,6 @@ class WM_Sass
 			}
 		}
 		echo self::$tag;
-		// var_dump( self::$variables ); exit();
 	}
 
 	public static function settings_updated()
@@ -332,8 +331,7 @@ class WM_Sass
 		$code = "/* WM_Sass Compiler */\n";
 		foreach ( self::valid_files( $files ) as $file ) {
 			$parser->addImportPath( dirname( $file ) );
-			$import = basename( $file, '.scss' );
-			$code .= "@import '{$import}';\n";
+			$code .= file_get_contents( $file ) . "\n";
 		}
 		self::blank_sources();
 		try {
