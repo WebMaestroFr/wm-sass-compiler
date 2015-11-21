@@ -75,12 +75,12 @@ class WM_Sass
 			if ( $lines = file( $source ) ) {
 				foreach ( $lines as $line ) {
 					// Find variable definitions
-					if ( preg_match( '/^\s*\$([a-zA-Z-]+)\s*:\s*(.+)(\s+!\s*default)?\s*;(\s*\/\/\s*(WP_Customize_[a-zA-Z_]+))?\s*$/', $line, $matches ) ) {
+					if ( preg_match( '/^\s*\$([a-zA-Z0-9-]+)\s*:\s*(.+)(\s+!\s*default)?\s*;(\s*\/\/\s*(WP_Customize_[a-zA-Z_]+)|\s*\/\/\s*(.*))?\s*$/', $line, $matches ) ) {
 						self::$variables['default'][$matches[1]] = $matches[2];
 						if ( ! empty( $matches[5] ) ) {
 							self::$variables['control'][$matches[1]] = $matches[5];
 							if ( $custom = get_theme_mod( $matches[1] ) ) {
-								self::$variables['custom'][$matches[1]] = get_theme_mod( $matches[1] );
+								self::$variables['custom'][$matches[1]] = $custom;
 							}
 						}
 					}
@@ -89,6 +89,7 @@ class WM_Sass
 		}
 		self::$variables['recorded'] = array_merge( self::$variables['option'], self::$variables['custom'] );
 		self::$variables['value'] = array_merge( self::$variables['default'], self::$variables['recorded'], array_filter( self::$variables['set'] ) );
+		// var_dump( self::$variables ); exit();
 	}
 
 	public static function init()
@@ -153,14 +154,13 @@ class WM_Sass
 			add_action( 'admin_notices', function () use ( $path ) {
 				add_settings_error( 'wm-sass', 'file_not_found', sprintf( __( 'The file <code>%s</code> cannot be found.', 'wm-sass' ), $path ) );
 			} );
+			return null;
 		} else if ( ! is_writable( $path ) ) {
 			add_action( 'admin_notices', function () use ( $path ) {
 				add_settings_error( 'wm-sass', 'file_not_writable', sprintf( __( 'The file <code>%s</code> is not writable.', 'wm-sass' ), $path ) );
 			} );
-		} else {
-			return $path;
 		}
-		return null;
+		return $path;
 	}
 
 	// Recursive file validation
@@ -200,10 +200,10 @@ class WM_Sass
 			),
 			array(
 				'description' => '<a href="http://sass-lang.com/guide" target="_blank">' . __( 'Getting started with Sass', 'wm-sass' ) . '</a> | <a href="http://webmaestro.fr/sass-compiler-wordpress/" target="_blank">' . __( 'Configure with PHP', 'wm-sass' ) . '</a>',
-				'tabs'        => true,
+				'tabs'        => true
 				// 'submit'      => __( 'Compile', 'wm-sass' ),
 				// 'updated'     => true,
-				'reset'       => false
+				// 'reset'       => false
 			)
 		);
 		$defaults = self::get_variables( 'default' );
@@ -340,6 +340,7 @@ class WM_Sass
 				add_settings_error( 'wm-sass', 'sass_compiled', __( 'Sass successfully compiled.', 'wm-sass' ), 'updated' );
 			} );
 		} catch ( exception $e ) {
+			// var_dump( $e->getMessage() ); exit();
 			$css = null;
 			add_action( 'admin_notices', function () use ( $e ) {
 				add_settings_error( 'wm-sass', $e->getCode(), sprintf( __( 'Compiler result with the following error : <pre>%s</pre>', 'wm-sass' ), $e->getMessage() ) );
